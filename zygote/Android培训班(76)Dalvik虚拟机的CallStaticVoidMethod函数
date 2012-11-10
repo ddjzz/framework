@@ -1,0 +1,119 @@
+
+Android培训班(76)Dalvik虚拟机的CallStaticVoidMethod函数
+分类： Android培训班 2011-10-22 19:37
+
+
+    在前面两个函数的介绍里，已经找到要执行方法的类，要执行的方法ＩＤ，那么接着下来要做的事情，就是执行方法，其实就是解释Java程序的字节码。那么Davlik虚拟机是怎么样执行方法的代码呢？又是怎么样解释这些字节码指令呢？因此，就先来分析函数 CallStaticVoidMethod 的代码，直接拿这个函数名称在源程序里查找，是查找不到的，因为代码里并没有直接使用这个名称来声明函数，其实是使用宏来实现的，如下：
+
+
+CALL_STATIC(void,Void, , , false);
+
+
+从上面可以看到，这是一个宏定义CALL_STATIC生成的函数，直接查找是不行的。接着来看一看这个宏到底是怎么样定义的，如下：
+
+/*
+
+* Call a static method.
+
+*/
+
+#define CALL_STATIC(_ctype, _jname, _retfail, _retok, _isref) \
+
+static_ctype CallStatic##_jname##Method(JNIEnv*env, jclass jclazz, \
+
+jmethodID methodID, ...) \
+
+{
+
+这个函数输入的参数有４个，第一个参数env是JNI的运行环境；第二个参数jclazz是方法的类对象；第三个参数methodID是运行的方法ＩＤ；第四个参数是可变输入参数。
+
+\
+
+UNUSED_PARAMETER(jclazz); \
+
+JNI_ENTER(); \
+
+JValue result; \
+
+va_list args; \
+
+va_start(args, methodID); \
+
+dvmCallMethodV(_self,(Method*)methodID, NULL, true, &result, args);\
+
+这行代码是调用dvmCallMethodV函数来执行方法的代码。
+
+
+va_end(args); \
+
+if(_isref && !dvmCheckException(_self)) \
+
+result.l =addLocalReference(env, result.l); \
+
+JNI_EXIT(); \
+
+return_retok; \
+
+} \
+
+
+
+下面这个方法是带可变参数的调用。
+
+static_ctype CallStatic##_jname##MethodV(JNIEnv*env, jclass jclazz, \
+
+jmethodID methodID,va_list args) \
+
+{ \
+
+UNUSED_PARAMETER(jclazz); \
+
+JNI_ENTER(); \
+
+JValue result; \
+
+dvmCallMethodV(_self,(Method*)methodID, NULL, true, &result, args);\
+
+if(_isref && !dvmCheckException(_self)) \
+
+result.l =addLocalReference(env, result.l); \
+
+JNI_EXIT(); \
+
+return_retok; \
+
+} \
+
+
+下面这个方法是有数组参数的调用。
+
+static_ctype CallStatic##_jname##MethodA(JNIEnv*env, jclass jclazz, \
+
+jmethodID methodID,jvalue* args) \
+
+{ \
+
+UNUSED_PARAMETER(jclazz); \
+
+JNI_ENTER(); \
+
+JValue result; \
+
+dvmCallMethodA(_self,(Method*)methodID, NULL, true, &result, args);\
+
+if(_isref && !dvmCheckException(_self)) \
+
+result.l =addLocalReference(env, result.l); \
+
+JNI_EXIT(); \
+
+return_retok; \
+
+}
+
+
+
+
+大坡3D软件开发
+http://blog.csdn.net/caimouse/article/details/6896987
+
